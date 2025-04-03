@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Smart Urban Garden</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Segoe UI', sans-serif;
+      background: #eef8f1;
+      margin: 0;
+      padding: 0;
+    }
+
+    header {
+      background: #4CAF50;
+      color: white;
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 20px auto;
+      background: white;
+      padding: 2rem;
+      border-radius: 16px;
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    }
+
+    .sensor-box {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 1rem;
+      margin-bottom: 2rem;
+    }
+
+    .sensor {
+      border: 1px solid #ddd;
+      border-radius: 12px;
+      padding: 1rem;
+      background: #f9f9f9;
+      text-align: center;
+    }
+
+    .status {
+      font-weight: bold;
+    }
+
+    button {
+      padding: 10px 20px;
+      font-size: 1rem;
+      border-radius: 8px;
+      border: none;
+      background: #4CAF50;
+      color: white;
+      cursor: pointer;
+      margin: 5px;
+    }
+
+    #history {
+      background: #f0f0f0;
+      padding: 1rem;
+      border-radius: 12px;
+      height: 200px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🌿 Smart Urban Garden</h1>
+  </header>
+
+  <div class="container">
+    <div class="sensor-box">
+      <div class="sensor">
+        <h3>Soil Moisture</h3>
+        <p><span id="moisture">--</span>%</p>
+        <p class="status" id="moistureStatus"></p>
+        <button onclick="waterPlant()">💧 Water Plant</button>
+        <button onclick="forceSpike()">⚡ Anomaly</button>
+      </div>
+      <div class="sensor">
+        <h3>Temperature</h3>
+        <p><span id="temp">--</span>°C</p>
+        <p class="status" id="tempStatus"></p>
+      </div>
+      <div class="sensor">
+        <h3>Light</h3>
+        <p><span id="light">--</span> lx</p>
+        <p class="status" id="lightStatus"></p>
+      </div>
+    </div>
+
+    <h2>Sensor Trends</h2>
+    <canvas id="chartMoisture" height="100"></canvas>
+    <canvas id="chartTemperature" height="100"></canvas>
+    <canvas id="chartLight" height="100"></canvas>
+
+    <h2>Sensor Data History</h2>
+    <div id="history"></div>
+  </div>
+
+  <script>
+    let soilMoisture = Math.floor(Math.random() * 100);
+    let temperature = 20 + Math.random() * 10;
+    let light = 300 + Math.random() * 500;
+
+    let moistureData = [], tempData = [], lightData = [];
+    let chartMoisture, chartTemperature, chartLight;
+
+    function updateUI() {
+      document.getElementById("moisture").innerText = soilMoisture.toFixed(1);
+      document.getElementById("temp").innerText = temperature.toFixed(1);
+      document.getElementById("light").innerText = Math.floor(light);
+
+      const mStat = document.getElementById("moistureStatus");
+      const tStat = document.getElementById("tempStatus");
+      const lStat = document.getElementById("lightStatus");
+
+      mStat.innerText = soilMoisture < 30 ? "⚠️ Dry" : soilMoisture > 80 ? "🌧️ Wet" : "✅ Optimal";
+      mStat.style.color = soilMoisture < 30 ? "red" : soilMoisture > 80 ? "blue" : "green";
+
+      tStat.innerText = temperature > 28 ? "☀️ Hot" : temperature < 18 ? "❄️ Cold" : "✅ Normal";
+      tStat.style.color = temperature > 28 ? "orange" : temperature < 18 ? "skyblue" : "green";
+
+      lStat.innerText = light < 400 ? "🌥️ Low" : light > 800 ? "🌞 Too Bright" : "✅ Adequate";
+      lStat.style.color = light < 400 ? "gray" : light > 800 ? "gold" : "green";
+    }
+
+    function waterPlant() {
+      soilMoisture = Math.min(soilMoisture + 15, 100);
+      updateUI();
+      logHistory("💧 Manual watering");
+    }
+
+    function forceSpike() {
+      soilMoisture = Math.random() * 100;
+      temperature = 15 + Math.random() * 20;
+      light = 200 + Math.random() * 1000;
+      updateUI();
+      updateCharts();
+      logHistory("⚡ Anomaly simulation");
+    }
+
+    function simulateData() {
+      soilMoisture = Math.max(0, Math.min(100, soilMoisture + (Math.random() - 0.5) * 10));
+      temperature = Math.max(10, Math.min(40, temperature + (Math.random() - 0.5) * 2));
+      light = Math.max(100, Math.min(1200, light + (Math.random() - 0.5) * 100));
+
+      updateUI();
+      updateCharts();
+      logHistory();
+    }
+
+    function logHistory(custom = null) {
+      const log = document.getElementById("history");
+      const time = new Date().toLocaleTimeString();
+      const entry = custom ?
+        `[${time}] ${custom}` :
+        `[${time}] Moisture: ${soilMoisture.toFixed(1)}%, Temp: ${temperature.toFixed(1)}°C, Light: ${Math.floor(light)} lx`;
+      log.innerHTML = `<div>${entry}</div>` + log.innerHTML;
+    }
+
+    function createCharts() {
+      const labels = Array.from({length: 20}, (_, i) => `T-${19 - i}`);
+
+      chartMoisture = new Chart(document.getElementById("chartMoisture"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{ label: "Soil Moisture (%)", data: [], borderColor: "green", borderWidth: 2 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, max: 100 } } }
+      });
+
+      chartTemperature = new Chart(document.getElementById("chartTemperature"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{ label: "Temperature (°C)", data: [], borderColor: "red", borderWidth: 2 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, max: 50 } } }
+      });
+
+      chartLight = new Chart(document.getElementById("chartLight"), {
+        type: "line",
+        data: {
+          labels,
+          datasets: [{ label: "Light (lx)", data: [], borderColor: "orange", borderWidth: 2 }]
+        },
+        options: { responsive: true, scales: { y: { beginAtZero: true, max: 1200 } } }
+      });
+    }
+
+    function updateCharts() {
+      if (moistureData.length > 20) {
+        moistureData.shift();
+        tempData.shift();
+        lightData.shift();
+      }
+
+      moistureData.push(soilMoisture);
+      tempData.push(temperature);
+      lightData.push(light);
+
+      chartMoisture.data.datasets[0].data = [...moistureData];
+      chartTemperature.data.datasets[0].data = [...tempData];
+      chartLight.data.datasets[0].data = [...lightData];
+
+      chartMoisture.update();
+      chartTemperature.update();
+      chartLight.update();
+    }
+
+    window.onload = () => {
+      createCharts();
+      simulateData();
+      setInterval(simulateData, 5000);
+    };
+  </script>
+</body>
+</html>
